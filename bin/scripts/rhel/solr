@@ -97,8 +97,9 @@ d_start() {
     # 
     # fix francesco  
     # with the following we are sure to pick up the correct pid, even if many other solr are already running
-    #
-    pid=`ps ax | grep "$JAVA -jar start.jar" | grep -v nohup |  grep -v grep | awk '{ print $1 }'`
+    # note: we need the pid of process with "nohup", to pick the supervising process, othewise 
+    #       systemd will say: Supervising process N which is not our child. We'll most likely not notice when it exits.
+    pid=`ps ax | grep "$JAVA -jar start.jar" | grep nohup | awk '{ print $1 }'`
     if [ -z $pid ]
     then
         echo "Error starting $NAME!"
