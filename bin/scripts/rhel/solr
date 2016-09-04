@@ -63,7 +63,8 @@ SOLR_HOME="/home/solr/$DIR_NAME/java"
 JAVA="/home/solr/$DIR_NAME/link_to_java_in_solr_directory"
 if [ ! -x "$JAVA" ]
 then
-        # il seguente crea il link simbolico a "/home/solr/$DIR_NAME/link_to_java_in_solr_directory" che ci serve piu sotto
+        # the following reate a symbolic link "/home/solr/$DIR_NAME/link_to_java_in_solr_directory" we then
+        # use below to identify correct pid
         ln -s /etc/alternatives/java $JAVA
 fi
 
