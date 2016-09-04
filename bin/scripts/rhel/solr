@@ -16,31 +16,65 @@
 # cd /etc/rc3.d && ln -s ../init.d/solr K70solr
 # cd /etc/rc5.d && ln -s ../init.d/solr K70solr
 #
+# fork by Francesco R. Opencontent
+# with the aim of creating a correct init script for Centos 7, suitable to hold many solr init scripts
 #
-# chkconfig: 2345 64 36
-# description: SOLR indexing server
-# processname: solr
-# pidfile: /var/run/solr.pid
+# Convention
+# NAME must start with "solr-"
+# 
+# NAME: solr-NOME
+#   es. NAME=solr-multicore-8001
+#   es. NAME=solr-singlecore
 
-DESC="Solr indexing server"
-NAME=solr
-SOLR_HOME= # Set solr home here (example: /var/www/ezpublish/extension/ezfind/java)
-JAVA_HOME= # Set java home here if java is not available in /usr/bin/java or /usr/local/bin/java
+# DIR_NAME: NOME senza il "solr-" iniziale
+#   che e' il nome della directory
+#   es. DIR_NAME=multicore-8001
+#   es. DIR_NAME=singlecore
+
+# enable with 
+# /sbin/chkconfig solr-multicore-8001 on
+# then 
+# service  solr-multicore-8001 status
+# /etc/init.d/solr-multicore-8001 start
+# /etc/init.d/solr-multicore-8001 stop
+# /etc/init.d/solr-multicore-8001 status
+# /etc/init.d/solr-multicore-8001 restart
+#
+###### CUSTOMIZE FROM HERE #####
+
+# Beware CENTOS 7 read the following (systemd)
+
+# chkconfig: 2345 64 36
+# description: SOLR indexing server solr-multicore-9001
+# processname: solr-multicore-9001
+# pidfile: /var/run/solr-multicore-9001.pid
+
+# NAME must start with "solr-"
+NAME="solr-multicore-9001"
+
+###### CUSTOMIZE TO HERE #####
+
+
+DESC="Solr indexing server $NAME"
+# remove first 5 chars (solr-) from NAME
+DIR_NAME=${NAME:5}
+SOLR_HOME="/home/solr/$DIR_NAME/java"
+
+JAVA="/home/solr/$DIR_NAME/link_to_java_in_solr_directory"
+if [ ! -x "$JAVA" ]
+then
+        # il seguente crea il link simbolico a "/home/solr/$DIR_NAME/link_to_java_in_solr_directory" che ci serve piu sotto
+        ln -s /etc/alternatives/java $JAVA
+fi
+
+if [ ! -x "$JAVA" ]
+then
+        echo "Unable to locate java. Please set JAVA_HOME environment variable."
+        exit
+fi
 
 source /etc/rc.d/init.d/functions
 
-for JAVA in "$JAVA_HOME/bin/java" "/usr/bin/java" "/usr/local/bin/java"
-do
-	if [ -x "$JAVA" ]
-        then
-		break
-	fi
-done
-if [ ! -x "$JAVA" ]
-then
-	echo "Unable to locate java. Please set JAVA_HOME environment variable."
-	exit
-fi
 
 RETVAL=0
 
@@ -50,12 +84,20 @@ d_start() {
     daemon --check "$NAME" --pidfile "/var/run/$NAME.pid" nohup $JAVA -jar start.jar > /dev/null 2>&1 &
     cd "$CURRENT_DIR"
     sleep 1 # Sleep 1 second, to make sure java is registered.
-    
+
     # Using pidof is not good, as there might be other java processes as well.
     # Replaced this by calling ps. Still, this is somewhat awkward.
     # 2014-10-10 alex.schuster@ez.no
     #pid=`pidof java`
-    pid=`ps ax | grep '[/]usr/bin/java -jar start.jar' | grep -v nohup | awk '{ print $1 }'`
+    # Centos 6
+    #pid=`ps ax | grep '[/]usr/bin/java -jar start.jar' | grep -v nohup | awk '{ print $1 }'`
+    # Centos 7
+    # pid=`ps ax | grep '[/]bin/java -jar start.jar' | grep -v nohup | awk '{ print $1 }'`
+    # 
+    # fix francesco  
+    # with the following we are sure to pick up the correct pid, even if many other solr are already running
+    #
+    pid=`ps ax | grep "$JAVA -jar start.jar" | grep -v nohup |  grep -v grep | awk '{ print $1 }'`
     if [ -z $pid ]
     then
         echo "Error starting $NAME!"
@@ -67,7 +109,7 @@ d_start() {
 }
 
 d_stop() {
-    killproc -p /var/run/solr.pid "$NAME" >> /dev/null 2>&1
+    killproc -p /var/run/$NAME.pid "$NAME" >> /dev/null 2>&1
     RETVAL=$?
     [ $RETVAL -eq 0 ] && rm -f "/var/lock/subsys/$NAME"
     return $RETVAL
@@ -80,13 +122,13 @@ d_restart() {
 }
 
 d_reload() {
-    killproc -p /var/run/solr.pid "$NAME" -HUP > /dev/null 2>&1
+    killproc -p /var/run/$NAME.pid "$NAME" -HUP > /dev/null 2>&1
     RETVAL=$?
     return $RETVAL
 }
 
 d_status() {
-    status -p /var/run/solr.pid "$NAME" > /dev/null 2>&1
+    status -p /var/run/$NAME.pid "$NAME" > /dev/null 2>&1
     return $?
 }
 
